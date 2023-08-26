@@ -69,7 +69,8 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка формата ответа response согласно документации API."""
-    if isinstance(response, dict) and isinstance(response.get('homeworks'), list):
+    if isinstance(response, dict) and \
+       isinstance(response.get('homeworks'), list):
         return response['homeworks'][0]
     else:
         logging.error('В ответе отсутствует нужная информация')
@@ -86,11 +87,16 @@ def parse_status(homework):
             if homework.get('status') in HOMEWORK_VERDICTS:
                 homework_name = homework.get('homework_name')
                 verdict = HOMEWORK_VERDICTS[homework.get('status')]
-                return (f'Изменился статус проверки работы "{homework_name}". {verdict}')
+                return (
+                    f'Изменился статус проверки работы "{homework_name}". '
+                    f'{verdict}'
+                )
             else:
                 status = homework.get('status')
                 logging.error(f'Неизвестный статус домашней работы: {status}')
-                raise Exception(f'Неизвестный статус домашней работы: {status}')
+                raise Exception(
+                    f'Неизвестный статус домашней работы: {status}'
+                )
     except KeyError("`homework_name`"):
         logging.error('Отсутствие ключа homework_name')
         return
