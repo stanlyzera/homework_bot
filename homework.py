@@ -41,43 +41,44 @@ def check_tokens():
     """Проверка наличия токенов."""
     required_tokens = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN',
                        'TELEGRAM_CHAT_ID', 'ENDPOINT')
-    missing_tokens = [i for i in required_tokens if not globals()[i]]
+    missing_tokens = [token for token in required_tokens if not globals()[token]]
     if missing_tokens:
-        logging.critical(f'Не хватает следующих'
-                         f'токенов: {", ".join(missing_tokens)}')
+        logger.critical(f'Не хватает следующих'
+                        f'токенов: {", ".join(missing_tokens)}')
         sys.exit(1)
 
 
 def send_message(bot, message):
     """Отправка сообщения пользователю TELEGRAM_CHAT_ID с статусом работы."""
-    logging.debug(f'Отправление сообщения: {message}')
+    logger.debug(f'Отправление сообщения: {message}')
     bot.send_message(TELEGRAM_CHAT_ID, message)
-    logging.debug(f'Сообщение успешно отправлено: {message}')
+    logger.debug(f'Сообщение успешно отправлено: {message}')
 
 
 def get_api_answer(timestamp):
     """Проверка соединения с API."""
     timestamp = {'from_date': timestamp}
     try:
-        logging.debug('Отправление запроса')
+        logger.debug('Отправление запроса')
         response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
         status_code = response.status_code
-    except requests.RequestException:
-        raise ConnectionError
+    except requests.RequestException as error:
+        raise ConnectionError(f'Не удалось соединиться {error}')
     if status_code != HTTPStatus.OK:
         raise IncorrectStatusError(f'При отправке запроса c params {timestamp}'
                                    f'был получен {status_code}')
-    logging.debug(f'Ответ на запрос успешно получен: {response}')
+    logger.debug(f'Ответ на запрос успешно получен: {response}')
     return response.json()
 
 
 def check_response(response):
     """Проверка формата ответа response согласно документации API."""
-    logging.debug(f'Начало проверки ответа response: {response}')
-    if not (isinstance(response, dict)
-            and isinstance(response.get('homeworks'), list)):
-        raise TypeError('Неверный формат ответа')
-    logging.debug('Успешное завершение проверки')
+    logger.debug(f'Начало проверки ответа response: {response}')
+    if not isinstance(response, dict):
+        raise TypeError('Ответ не является словарем')
+    if not isinstance(response.get('homeworks'), list):
+        raise TypeError('homeworks не является списком')
+    logger.debug('Успешное завершение проверки')
     return response
 
 
@@ -86,7 +87,7 @@ def parse_status(homework):
     Проверка корректности статуса homework.
     В соответствии с документацией API.
     """
-    logging.debug('Начало выполнение проверки статуса homework')
+    logger.debug('Начало выполнение проверки статуса homework')
     if 'homework_name' not in homework:
         raise KeyError('В словаре отсутствует ключ homework_name')
     homework_name = homework['homework_name']
@@ -107,7 +108,6 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_message = ''
-    ERROR_MESSAGE = 'Сбой в работе программы:'
     last_error_message = ''
 
     while True:
@@ -122,18 +122,19 @@ def main():
                     send_message(bot, message)
                     last_message = message
                 else:
-                    logging.debug('Пришло повторяющиеся сообщение {message}')
+                    logger.debug(f'Пришло повторяющиеся сообщение {message}')
             else:
-                logging.debug('Новых статусов нет')
+                logger.debug('Новых статусов нет')
             timestamp = int(time.time())
         except telegram.TelegramError as telegram_error:
-            logging.error(f'Ошибка при отправке сообщения '
-                          f'в Telegram: {telegram_error}', exc_info=True)
+            logger.error(f'Ошибка при отправке сообщения '
+                         f'в Telegram: {telegram_error}', exc_info=True)
         except Exception as error:
-            logging.error(ERROR_MESSAGE + str(error), exc_info=True)
+            ERROR_MESSAGE = 'Сбой в работе программы:' + str(error)
+            logger.error(ERROR_MESSAGE, exc_info=True)
             with suppress(telegram.TelegramError):
                 if str(error) != last_error_message:
-                    send_message(bot, ERROR_MESSAGE + str(error))
+                    send_message(bot, ERROR_MESSAGE)
                     last_error_message = str(error)
         finally:
             time.sleep(RETRY_PERIOD)
