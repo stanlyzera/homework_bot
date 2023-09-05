@@ -41,7 +41,8 @@ def check_tokens():
     """Проверка наличия токенов."""
     required_tokens = ('PRACTICUM_TOKEN', 'TELEGRAM_TOKEN',
                        'TELEGRAM_CHAT_ID', 'ENDPOINT')
-    missing_tokens = [token for token in required_tokens if not globals()[token]]
+    missing_tokens = [token for token in required_tokens
+                      if not globals()[token]]
     if missing_tokens:
         logger.critical(f'Не хватает следующих'
                         f'токенов: {", ".join(missing_tokens)}')
