@@ -108,9 +108,7 @@ def main():
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    last_message = ''
-    last_error_message = ''
-
+    error_message = ''
     while True:
         try:
             response = get_api_answer(timestamp)
@@ -119,24 +117,23 @@ def main():
             if new_homeworks:
                 homework = new_homeworks[0]
                 message = parse_status(homework)
-                if message != last_message:
+                if message != error_message:
                     send_message(bot, message)
-                    last_message = message
+                    error_message = message
                 else:
                     logger.debug(f'Пришло повторяющиеся сообщение {message}')
             else:
                 logger.debug('Новых статусов нет')
-            timestamp = int(time.time())
+            timestamp = response.get('current_date', timestamp)
         except telegram.TelegramError as telegram_error:
             logger.error(f'Ошибка при отправке сообщения '
                          f'в Telegram: {telegram_error}', exc_info=True)
         except Exception as error:
-            ERROR_MESSAGE = 'Сбой в работе программы:' + str(error)
-            logger.error(ERROR_MESSAGE, exc_info=True)
+            logger.error(error_message, exc_info=True)
             with suppress(telegram.TelegramError):
-                if str(error) != last_error_message:
-                    send_message(bot, ERROR_MESSAGE)
-                    last_error_message = str(error)
+                if str(error) != error_message:
+                    send_message(bot, error_message)
+                    error_message = str(error)
         finally:
             time.sleep(RETRY_PERIOD)
 
